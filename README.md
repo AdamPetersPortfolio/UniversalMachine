@@ -45,26 +45,6 @@ Creators: Jonathan Lai (jlai03) & Adam Peters (apeter09)
                          to handle instruction cycles of high volumes.
 
 
-Departures from Design: Other than a few minor departures in syntax, we had
-                        one major addition to our initial design. We forgot
-                        that we needed a way to keep track of unmapped indices
-                        in our sequence that could be reused to save space
-                        in memory. Thus, we changed Mem_Seq to a struct
-                        internally containing a) the memory sequence alongside
-                        b) an auxiliary UArray that we programmed to be
-                        dynamic / resizable.
-
-                        This Array (called identifiers) would contain a list of
-                        the indices at which memory is unmapped. Thus every
-                        time a segment must be added, we first check the
-                        identifiers array to see if there are any open indices
-                        in memory that we can reuse - if not, we then continue
-                        to add an index in the memory sequence. We specifically
-                        self programmed a resizable UArray to avoid pointer
-                        chasing (which Hanson's data structures rely on heavily
-                        - drastically slowing runtime).
-
-
 ## Architecture of Universal Machine
 
         The general Architecture for Universal Machine is as follows:
