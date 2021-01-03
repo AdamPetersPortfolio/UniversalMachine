@@ -1,0 +1,269 @@
+/****************************************************************************
+ *  COMP 40 HW6 Universal Machine                                           *
+ *                                                                          *
+ *  README                                                                  *
+ *  Created By (UTLN): jlai03 & apeter09                                    *
+ *           On      : 9/21/2020                                            *
+ *                                                                          *
+ ****************************************************************************/
+
+
+Creators: Jonathan Lai (jlai03) & Adam Peters (apeter09)
+
+Acknowledgements: We'd like to thank the TA Spencer for helping clarify what
+map and load functions did. We'd also like to thank the Lab TA's for helping
+us make the .um test.
+
+What has been correctly implemented & not correctly implemented:
+
+    mem_seq.h/c - Mem_Seq was tested with multiple edges cases and is fully
+                  functional to our knowledge. The interface allows for
+                  a) creating and freeing a memory sequence, b) Adding,
+                  Accessing, Freeing, and Loading Memory Segments. The
+                  implementation relies on the creation of a dynamic UArray
+                  for the Identifier Array (which was also tested with
+                  a variety of inputs).
+
+    registers.h/c - This interface for Reg_arr was tested with a variety of
+                    inputs and is fully functional to our knowledge. The
+                    interface allows for a) creating and freeing the Register
+                    Array and b) Getting and Setting Memory in the Register
+                    Array. Each function was able to to handle all edge cases
+                    and inputs.
+
+    operations_cpu.h/c - The functions contained in the cpu struct were
+                         each tested with edge case and normally inputs for
+                         a, b, and c's values. This interface is able to
+                         execute a variety of operations in Universal Machine
+                         including functions that a) move around memory,
+                         b) perform simple arithmetic computations,
+                         c) map and unmap memory segments, d) handle input
+                         and output, and e) load values / programs (altering
+                         the data structures accordingly). Each function was
+                         tested rigorously and thus makes for a robust
+                         struct of functions in cpu.
+
+    universalmachine.c - The individual functions in this file were each tested
+                         with a variety of inputs - correctly performing
+                         against edge cases and assert triggers. Collectively,
+                         the program was able to perform correctly against most
+                         of the .um test files that were provided and the
+                         .um tests that we created. Thus, to our knowledge,
+                         this interface was implemented correctly and is fully
+                         functional. This interface specifically allows for
+                         reading in a .um file into a Segment of instructions
+                         in memory then iterating over said segment and
+                         executing the instructions accordingly. It was able
+                         to handle instruction cycles of high volumes.
+
+
+Departures from Design: Other than a few minor departures in syntax, we had
+                        one major addition to our initial design. We forgot
+                        that we needed a way to keep track of unmapped indices
+                        in our sequence that could be reused to save space
+                        in memory. Thus, we changed Mem_Seq to a struct
+                        internally containing a) the memory sequence alongside
+                        b) an auxiliary UArray that we programmed to be
+                        dynamic / resizable.
+
+                        This Array (called identifiers) would contain a list of
+                        the indices at which memory is unmapped. Thus every
+                        time a segment must be added, we first check the
+                        identifiers array to see if there are any open indices
+                        in memory that we can reuse - if not, we then continue
+                        to add an index in the memory sequence. We specifically
+                        self programmed a resizable UArray to avoid pointer
+                        chasing (which Hanson's data structures rely on heavily
+                        - drastically slowing runtime).
+
+
+Architecture of Universal Machine:
+
+        The general Architecture for Universal Machine is as follows:
+
+        a) [Mem_Seq] struct containing a Memory Sequence and a
+           Identifier Array
+
+           The Memory Sequence provides an interface for a sequence (Seq_T)
+           of segments (UArray_T). By providing functions for Adding and
+           Maneuvering segments, the client can not directly control or
+           alter the placing of segments - rather the interface allows
+           a structured, clean, and error free way of maintaining memory
+           using this intersection of two data structures.
+
+           The Identifier Array is a UArray that is implemented to be
+           dynamic/resizable. The resizing and adding function is not provided
+           to the client so that memory and space of the UArray can be
+           controlled within the parameters of the program. We chose to use
+           UArray over other Hansons data structures to avoid pointer chasing
+           thus conserving runtime.
+
+        b) [Reg_arr] array holding the 8 auxiliary register values for
+           sustaining locality in our machine system
+
+           The Reg_Arr is basically just a UArray with further defined
+           functions. The Reg_arr interface only allows for
+           a) constructing / destructing and b) getting / setting. By defining
+           and restricting the client access to these four functions, we avoid
+           errors that arise form direct client access.
+
+        c) [cpu] struct containing functions that operate on [Mem_Seq] and
+           [Reg_arr] to perform basic maneuvers of memory and simple
+           arithmetic computations
+
+           cpu itself is a pointer to a struct containing function pointers.
+           Thus, the client can only create and free the cpu struct, but
+           can NOT directly access the function pointers themselves (rather
+           they can only call them). In other words, the implementations of
+           the functions are not conventionally listed in the .h file, rather
+           they statically implemented in the .c file such that clients
+           can only call the functions by creating an instance of the cpu
+           struct. This allows for both a more modular and abstract solution
+           to the list of operations that are used in Universal Machine's
+           processing of instructions.
+
+        The first step of the program is to read in a file of .um instructions
+        into the first segment of [Mem_Seq]. Then an integer program counter
+        is used to iterate through the instruction segment and execute
+        each instruction separately. The universalmachine.c file contains
+        helper functions that parse and process the bitpacked instructions.
+        Each instruction subsequently calls functions in the cpu struct that
+        directly alter the memory in [Mem_Seq] and [Reg_arr] via the interfaces
+        provide for them. Thus the memory flow between modules is as follows
+
+        1. universalmachine.c parses instructions and calls functions in the
+           cpu struct
+
+        2. The cpu struct calls functions in the Register Array and Mem_Seq
+           interface. This way cpu can maneuver memory and perform computations
+           as requested.
+
+        3. The Mem_Seq and Register Array interfaces allow regulated control
+           and access of the underlying data structures - as to prevent errors
+           that can arise from direct access/control to the underlying data
+           structures.
+
+
+How long it takes Universal Machine to execute 50 million instructions:
+
+      We ran the .um program against sandmark.umz which executed 2,113,497,561
+      instructions in 246 seconds. Thus, our Universal Machine should be able 
+      to execute 50 million instructions within 5.82 seconds:
+
+      T_50mil = (246 seconds * 50 mil instructions) / 2,111,497561 instructions
+      T_50 mil = 5.82 seconds
+
+UM TESTS:
+
+### NOTE: All tests that produce outputs where compared to the supplied um 
+          executable. 
+
+halt.um - Tests the UM's ability to immediately halt the program. Does this by 
+           inputting a halt instruction. Verify that the command is called 
+           and executed properly with valgrind - make such that there is 
+           no remaining memory on the heap.
+
+initoutput.um - Tests the program's outputs command by outputting the initial
+                state in register 0. 
+                
+loadv.um - Tests the UM's to load the character 97 into the appropriate index 
+           of the first register. Does this by printing the specified register.
+
+output.um - Tests the programs ability to output all 256 ascii characters. 
+            Accomplishes this by loading some value i into register 0, 
+            and then outputting that register. The value i starts at 0 and 
+            goes up to 255. 
+
+add.um - Tests the program's add command by loading the values 10 and 30 into 
+         two different registers. The add instructions is then called on
+         those two registers. The sum is then outputted, and that sum is fed 
+         added with itself in another add command. Finally, that sum is 
+         outputted and the program is halted. 
+
+div.um - Tests the program's divide command by loading the values 50 and 100 
+         different registers. The divide instruction is then called on those 
+         two registers. The quotient is then outputted and verified. The same 
+         process is then repeated swapping the registers in which 50 and 100 
+         were stored. Thus, we test the UM's ability to output 
+         values >= 1 (100/50) and values that should truncate to 0 (50/100)
+
+mult.um - Tests the program's multiply command by loading the values 5 and 2 
+          into different registers. The multiply instruction is then  called 
+          on those two registers. The product is then outputted and verified.
+          The same process is then repeated using values 0 and 10. This way 
+          we test the UM's ability to handle both normal integer multiplication
+          and the zero property s.t. any number multiplied by 0 is equal to 0.
+
+cmov.um - Tests the program's cmov command with 0 in r[c] and 100 in r[c]. 
+          Accomplishes this by loading the aforementioned values into two 
+          different registers. The test then calls the CMOV command twice on 
+          a new register, and outputs that register after each CMOV call. Thus,
+          this test looks at CMOV's ability to handle the condition where it 
+          moves values, and the condition where it keeps the registers the 
+          same. 
+
+input.um - Tests the program's input command by calling the input command in 
+           .um. The program prompts the client for an input via stdin and 
+           stores it into r[c]. We verify that it was correctly stored by 
+           outputting r[c]. This was subseqeuently tested with a variety of 
+           inputs in both the ASCII range and NULL.
+
+nand.um - Tests the files nand command by calling nand on the values 0 and 0. 
+          This produce a 32-bit word of all 1's, which cannot be printed via
+          the output command, as output expects values between 0 and 255. Thus,
+          this test divides ~0 by two 26 times in order to bit shift the number
+          into the accepted output range. This output is then printed. 
+
+mapstress.um - Tests the UM's ability to map segments by mapping 100 segments 
+               into memory sequence, each containing 100 words. It then 
+               calls the halt function. We then verify that everything 
+               was mapped correctly by executing the test with valgrind - 
+               verifying that memory allocation and deallocation was 
+               correctly executed. 
+
+map_unmap_stress.um - Tests the UM's ability to unmap segments. It does this by
+                      mapping 1000 segments, each containing 100 words. The UM 
+                      is then tested by consecutively mapping then unmapping 
+                      various segments. This is done to verify that our 
+                      identifier array correctly interacts/stores memory in the
+                      sequence such that no errors arise in memory control and 
+                      conservation. Verify that there are no valgrind errors
+                      after performing this stress test. 
+
+sstore.um - Tests the UM's ability to store memory. This test has the UM map a 
+            segment, then stores the value 10 in the second word of the created
+            segment. The test then halts. Run this test through and check that 
+            it is both fully functional and that there are no valgrind errors 
+            which arise in this method of memory storage. 
+
+sload.um - Tests the UM's ability to load segments in memory. It tests this 
+           by mapping a segment, loading the value 10 into the 5th word of the 
+           created segment, then calls the load instruction in cpu. This 
+           should retrieve the value 10 that was placed and outputs it. Verify 
+           that this is fully functional and that it surpasses all possible 
+           valgrind issues. 
+
+loadp_sameseg.um - Tests the ability of the program to goto a new word in 
+                   segment 0. Accomplishes this by creating a halt command 
+                   right after a LOADP command. The LOADP command must skip 
+                   over this halt, using values stored in registers 0 and 1. 
+                   If the LOADP goes to the correct location in the code, it 
+                   will output the  aciicharacter 10. If it goes to the wrong 
+                   location, the program will halt. 
+
+loadp_difseg.um - Tests the ability of the program to load a new segment into 
+                  the instructions segment. Accomplishes this by loading a 10 
+                  into r1 and a 7 into r2. These registers are then bitshifted 
+                  left by 28 (with the multiply command) in order to produce 
+                  the 32 bit words with op codes output and halt. A new segment
+                  is then mapped, and these words are loaded into that segment 
+                  in position 0 and position 1, respectively. Next, a 10 is 
+                  is loaded into r0, and the loadprogram command is called 
+                  on the newly mapped segment. This new segment will output the
+                  value in r0 (10) and then halt. 
+
+Approximate Time (Analyzing): 4 hours
+Approximate Time (Design Preparation): 6 hours
+Approximate Time (Solving Problems Post-Analysis): 25 hours
+
+
